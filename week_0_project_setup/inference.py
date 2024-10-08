@@ -5,8 +5,10 @@ from data import DataModule
 
 class ColaPredictor:
     def __init__(self, model_path):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.model_path = model_path
         self.model = ColaModel.load_from_checkpoint(model_path)
+        self.model = self.model.to('cpu')
         self.model.eval()
         self.model.freeze()
         self.processor = DataModule()
@@ -29,5 +31,5 @@ class ColaPredictor:
 
 if __name__ == "__main__":
     sentence = "The boy is sitting on a bench"
-    predictor = ColaPredictor("./models/epoch=0-step=267.ckpt")
+    predictor = ColaPredictor("./models/epoch=3-step=1072.ckpt")
     print(predictor.predict(sentence))

@@ -16,7 +16,8 @@ class SamplesVisualisationLogger(pl.Callback):
 
         self.datamodule = datamodule
 
-    def on_validation_end(self, trainer, pl_module):
+    def on_validation_epoch_end(self, trainer, pl_module):
+        #wandb.init()
         val_batch = next(iter(self.datamodule.val_dataloader()))
         sentences = val_batch["sentence"]
 

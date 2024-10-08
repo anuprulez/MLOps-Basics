@@ -19,17 +19,17 @@ class ColaModel(pl.LightningModule):
             model_name, num_labels=2
         )
         self.num_classes = 2
-        self.train_accuracy_metric = torchmetrics.Accuracy()
-        self.val_accuracy_metric = torchmetrics.Accuracy()
-        self.f1_metric = torchmetrics.F1(num_classes=self.num_classes)
+        self.train_accuracy_metric = torchmetrics.Accuracy(task='binary', num_classes=self.num_classes)
+        self.val_accuracy_metric = torchmetrics.Accuracy(task='binary', num_classes=self.num_classes)
+        self.f1_metric = torchmetrics.F1Score(task='binary', num_classes=self.num_classes)
         self.precision_macro_metric = torchmetrics.Precision(
-            average="macro", num_classes=self.num_classes
+            average="macro", num_classes=self.num_classes, task='binary'
         )
         self.recall_macro_metric = torchmetrics.Recall(
-            average="macro", num_classes=self.num_classes
+            average="macro", num_classes=self.num_classes, task='binary'
         )
-        self.precision_micro_metric = torchmetrics.Precision(average="micro")
-        self.recall_micro_metric = torchmetrics.Recall(average="micro")
+        self.precision_micro_metric = torchmetrics.Precision(average="micro", num_classes=self.num_classes, task='binary')
+        self.recall_micro_metric = torchmetrics.Recall(average="micro", num_classes=self.num_classes, task='binary')
 
     def forward(self, input_ids, attention_mask, labels=None):
         outputs = self.bert(
@@ -73,7 +73,8 @@ class ColaModel(pl.LightningModule):
         self.log("valid/f1", f1, prog_bar=True, on_epoch=True)
         return {"labels": labels, "logits": outputs.logits}
 
-    def validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self, outputs):
+        #wandb.init()
         labels = torch.cat([x["labels"] for x in outputs])
         logits = torch.cat([x["logits"] for x in outputs])
         preds = torch.argmax(logits, 1)
