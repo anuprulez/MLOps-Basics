@@ -15,8 +15,9 @@ class SamplesVisualisationLogger(pl.Callback):
         super().__init__()
 
         self.datamodule = datamodule
+        self.validation_step_outputs = []
 
-    def on_validation_epoch_end(self, trainer, pl_module):
+    '''def on_validation_epoch_end(self, trainer, pl_module):
         #wandb.init()
         val_batch = next(iter(self.datamodule.val_dataloader()))
         sentences = val_batch["sentence"]
@@ -34,6 +35,27 @@ class SamplesVisualisationLogger(pl.Callback):
             {
                 "examples": wandb.Table(dataframe=wrong_df, allow_mixed_types=True),
                 "global_step": trainer.global_step,
+            }
+        )'''
+        
+    def on_validation_epoch_end(self, outputs):
+        #wandb.init()
+        val_batch = next(iter(self.datamodule.val_dataloader()))
+        sentences = val_batch["sentence"]
+
+        #outputs = pl_module(val_batch["input_ids"], val_batch["attention_mask"])
+        preds = torch.argmax(outputs.logits, 1)
+        labels = val_batch["label"]
+
+        df = pd.DataFrame(
+            {"Sentence": sentences, "Label": labels.numpy(), "Predicted": preds.numpy()}
+        )
+
+        wrong_df = df[df["Label"] != df["Predicted"]]
+        self.logger.experiment.log(
+            {
+                "examples": wandb.Table(dataframe=wrong_df, allow_mixed_types=True),
+                #"global_step": trainer.global_step,
             }
         )
 
@@ -53,11 +75,12 @@ def main():
         monitor="valid/loss", patience=3, verbose=True, mode="min"
     )
 
-    wandb_logger = WandbLogger(project="MLOps Basics", entity="raviraja")
+    wandb_logger = WandbLogger(project="MLOps-Basics", entity="anup-rulez") 
+    # SamplesVisualisationLogger(cola_data)
     trainer = pl.Trainer(
-        max_epochs=1,
+        max_epochs=50,
         logger=wandb_logger,
-        callbacks=[checkpoint_callback, SamplesVisualisationLogger(cola_data), early_stopping_callback],
+        callbacks=[checkpoint_callback, early_stopping_callback],
         log_every_n_steps=10,
         deterministic=True,
         # limit_train_batches=0.25,

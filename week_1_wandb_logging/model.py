@@ -14,6 +14,9 @@ class ColaModel(pl.LightningModule):
     def __init__(self, model_name="google/bert_uncased_L-2_H-128_A-2", lr=3e-5):
         super(ColaModel, self).__init__()
         self.save_hyperparameters()
+        self.validation_step_labels = []
+        self.validation_step_logits = []
+        self.validation_step_preds = []
 
         self.bert = AutoModelForSequenceClassification.from_pretrained(
             model_name, num_labels=2
@@ -37,7 +40,7 @@ class ColaModel(pl.LightningModule):
         )
         return outputs
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch):
         outputs = self.forward(
             batch["input_ids"], batch["attention_mask"], labels=batch["label"]
         )
@@ -48,12 +51,17 @@ class ColaModel(pl.LightningModule):
         self.log("train/acc", train_acc, prog_bar=True, on_epoch=True)
         return outputs.loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch):
         labels = batch["label"]
         outputs = self.forward(
             batch["input_ids"], batch["attention_mask"], labels=batch["label"]
         )
         preds = torch.argmax(outputs.logits, 1)
+        #preds = preds.numpy()
+        
+        self.validation_step_labels.extend(labels)
+        #self.validation_step_logits.extend(outputs.logits)
+        self.validation_step_preds.extend(preds)
 
         # Metrics
         valid_acc = self.val_accuracy_metric(preds, labels)
@@ -73,21 +81,41 @@ class ColaModel(pl.LightningModule):
         self.log("valid/f1", f1, prog_bar=True, on_epoch=True)
         return {"labels": labels, "logits": outputs.logits}
 
-    def on_validation_epoch_end(self, outputs):
+    def on_validation_epoch_end(self):
         #wandb.init()
-        labels = torch.cat([x["labels"] for x in outputs])
-        logits = torch.cat([x["logits"] for x in outputs])
-        preds = torch.argmax(logits, 1)
+        #labels = torch.cat([x["labels"] for x in outputs])
+        #logits = torch.cat([x["logits"] for x in outputs])
+        #preds = torch.argmax(logits, 1)
+        
+        #epoch_logits = torch.stack(self.validation_step_logits)
+        #epoch_labels = torch.stack(self.validation_step_labels)
+        #epoch_preds = torch.stack(self.validation_step_preds)
+        print(self.validation_step_preds)
+        print(self.validation_step_labels)
+        
+        #epoch_logits = torch.stack(self.validation_step_logits)
+        epoch_labels = torch.stack(self.validation_step_labels)
+        epoch_preds = torch.stack(self.validation_step_preds)
+        
+        print(epoch_labels)
+        print(epoch_preds)
+        
+        #preds = self.validation_step_preds.cpu().numpy() #if self.validation_step_preds.is_cuda else self.validation_step_preds.tolist()
+        #labels = self.validation_step_labels.cpu().numpy() #if self.validation_step_labels.is_cuda else self.validation_step_labels.tolist()
+
 
         ## There are multiple ways to track the metrics
         # 1. Confusion matrix plotting using inbuilt W&B method
         self.logger.experiment.log(
             {
-                "conf": wandb.plot.confusion_matrix(
-                    probs=logits.numpy(), y_true=labels.numpy()
-                )
+                "conf": wandb.plot.confusion_matrix(probs=None, preds=epoch_preds.tolist(), y_true=epoch_labels.tolist(), class_names=["0", "1"])
             }
         )
+        
+        self.validation_step_labels = []
+        self.validation_step_preds = []
+        epoch_labels = []
+        epoch_preds = []
 
         # 2. Confusion Matrix plotting using scikit-learn method
         # wandb.log({"cm": wandb.sklearn.plot_confusion_matrix(labels.numpy(), preds)})
