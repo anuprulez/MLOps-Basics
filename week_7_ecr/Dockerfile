@@ -14,16 +14,17 @@ ENV AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
 
 # install requirements
 RUN pip install "dvc[s3]"
-RUN pip install -r requirements_inference.txt
+RUN pip install -r requirements_inference_prod.txt
 
 # initialise dvc
 RUN dvc init --no-scm
 # configuring remote server in dvc
-RUN dvc remote add -d model-store s3://models-dvc/trained_models/
+RUN dvc remote add -d model-store s3://ml-bucket-dvc/trained_models_dvc/ -f
 
 RUN cat .dvc/config
+
 # pulling the trained model
-RUN dvc pull dvcfiles/trained_model.dvc
+RUN dvc pull dvcfiles/model.onnx.dvc
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
