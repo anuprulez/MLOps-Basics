@@ -22,7 +22,7 @@ class SamplesVisualisationLogger(pl.Callback):
 
         self.datamodule = datamodule
 
-    def on_validation_end(self, trainer, pl_module):
+    '''def on_validation_end(self, trainer, pl_module):
         val_batch = next(iter(self.datamodule.val_dataloader()))
         sentences = val_batch["sentence"]
 
@@ -40,7 +40,7 @@ class SamplesVisualisationLogger(pl.Callback):
                 "examples": wandb.Table(dataframe=wrong_df, allow_mixed_types=True),
                 "global_step": trainer.global_step,
             }
-        )
+        )'''
 
 
 @hydra.main(config_path="./configs", config_name="config")
@@ -64,11 +64,11 @@ def main(cfg):
         monitor="valid/loss", patience=3, verbose=True, mode="min"
     )
 
-    wandb_logger = WandbLogger(project="MLOps Basics", entity="raviraja")
+    wandb_logger = WandbLogger(project="MLOps Basics", entity="anup-rulez")
     trainer = pl.Trainer(
         max_epochs=cfg.training.max_epochs,
         logger=wandb_logger,
-        callbacks=[checkpoint_callback, SamplesVisualisationLogger(cola_data), early_stopping_callback],
+        callbacks=[checkpoint_callback, early_stopping_callback],
         log_every_n_steps=cfg.training.log_every_n_steps,
         deterministic=cfg.training.deterministic,
         limit_train_batches=cfg.training.limit_train_batches,

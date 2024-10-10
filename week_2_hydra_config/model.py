@@ -1,12 +1,10 @@
 import torch
 import wandb
-import hydra
 import numpy as np
 import pandas as pd
-import torchmetrics
 import pytorch_lightning as pl
 from transformers import AutoModelForSequenceClassification
-from omegaconf import OmegaConf, DictConfig
+import torchmetrics
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -16,22 +14,26 @@ class ColaModel(pl.LightningModule):
     def __init__(self, model_name="google/bert_uncased_L-2_H-128_A-2", lr=3e-5):
         super(ColaModel, self).__init__()
         self.save_hyperparameters()
+        self.validation_step_labels = []
+        self.validation_step_logits = []
+        self.validation_step_preds = []
 
+        self.epo_step = []
         self.bert = AutoModelForSequenceClassification.from_pretrained(
             model_name, num_labels=2
         )
         self.num_classes = 2
-        self.train_accuracy_metric = torchmetrics.Accuracy()
-        self.val_accuracy_metric = torchmetrics.Accuracy()
-        self.f1_metric = torchmetrics.F1(num_classes=self.num_classes)
+        self.train_accuracy_metric = torchmetrics.Accuracy(task='binary', num_classes=self.num_classes)
+        self.val_accuracy_metric = torchmetrics.Accuracy(task='binary', num_classes=self.num_classes)
+        self.f1_metric = torchmetrics.F1Score(task='binary', num_classes=self.num_classes)
         self.precision_macro_metric = torchmetrics.Precision(
-            average="macro", num_classes=self.num_classes
+            average="macro", num_classes=self.num_classes, task='binary'
         )
         self.recall_macro_metric = torchmetrics.Recall(
-            average="macro", num_classes=self.num_classes
+            average="macro", num_classes=self.num_classes, task='binary'
         )
-        self.precision_micro_metric = torchmetrics.Precision(average="micro")
-        self.recall_micro_metric = torchmetrics.Recall(average="micro")
+        self.precision_micro_metric = torchmetrics.Precision(average="micro", num_classes=self.num_classes, task='binary')
+        self.recall_micro_metric = torchmetrics.Recall(average="micro", num_classes=self.num_classes, task='binary')
 
     def forward(self, input_ids, attention_mask, labels=None):
         outputs = self.bert(
@@ -39,7 +41,7 @@ class ColaModel(pl.LightningModule):
         )
         return outputs
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch):
         outputs = self.forward(
             batch["input_ids"], batch["attention_mask"], labels=batch["label"]
         )
@@ -50,12 +52,17 @@ class ColaModel(pl.LightningModule):
         self.log("train/acc", train_acc, prog_bar=True, on_epoch=True)
         return outputs.loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch):
         labels = batch["label"]
         outputs = self.forward(
             batch["input_ids"], batch["attention_mask"], labels=batch["label"]
         )
         preds = torch.argmax(outputs.logits, 1)
+        #preds = preds.numpy()
+        
+        self.validation_step_labels.extend(labels)
+        #self.validation_step_logits.extend(outputs.logits)
+        self.validation_step_preds.extend(preds)
 
         # Metrics
         valid_acc = self.val_accuracy_metric(preds, labels)
@@ -75,23 +82,27 @@ class ColaModel(pl.LightningModule):
         self.log("valid/f1", f1, prog_bar=True, on_epoch=True)
         return {"labels": labels, "logits": outputs.logits}
 
-    def validation_epoch_end(self, outputs):
-        labels = torch.cat([x["labels"] for x in outputs])
-        logits = torch.cat([x["logits"] for x in outputs])
-        preds = torch.argmax(logits, 1)
+    def on_validation_epoch_end(self):
 
+        epoch_labels = torch.stack(self.validation_step_labels)
+        epoch_preds = torch.stack(self.validation_step_preds)
+        
         ## There are multiple ways to track the metrics
         # 1. Confusion matrix plotting using inbuilt W&B method
         self.logger.experiment.log(
             {
-                "conf": wandb.plot.confusion_matrix(
-                    probs=logits.numpy(), y_true=labels.numpy()
-                )
+                "conf": wandb.plot.confusion_matrix(probs=None, preds=epoch_preds.tolist(), y_true=epoch_labels.tolist(), class_names=["0", "1"]),
+                #"global_step": trainer.global_step,
             }
         )
 
         # 2. Confusion Matrix plotting using scikit-learn method
-        # wandb.log({"cm": wandb.sklearn.plot_confusion_matrix(labels.numpy(), preds)})
+        #self.log("cm", wandb.sklearn.plot_confusion_matrix(epoch_labels.tolist(), epoch_preds.tolist()), prog_bar=True, on_epoch=True)
+
+        self.validation_step_labels = []
+        self.validation_step_preds = []
+        epoch_labels = []
+        epoch_preds = []
 
         # 3. Confusion Matric plotting using Seaborn
         # data = confusion_matrix(labels.numpy(), preds.numpy())
