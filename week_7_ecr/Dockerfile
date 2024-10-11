@@ -5,6 +5,7 @@ WORKDIR /app
 
 ARG AWS_ACCESS_KEY_ID
 ARG AWS_SECRET_ACCESS_KEY
+ARG MODEL_DIR=./dvcfiles
 
 
 #this envs are experimental
@@ -25,6 +26,8 @@ RUN cat .dvc/config
 
 # pulling the trained model
 RUN dvc pull dvcfiles/model.onnx.dvc
+
+RUN chmod -R 0755 $MODEL_DIR
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
