@@ -21,10 +21,10 @@ ENV LANG=C.UTF-8
 RUN pip install "dvc[s3]"
 # configuring remote server in dvc
 RUN dvc init --no-scm
-RUN dvc remote add -d model-store s3://models-dvc/trained_models/
+RUN dvc remote add -d model-store s3://ml-bucket-dvc/trained_models_dvc/ -f
 
 # pulling the trained model
-RUN dvc pull dvcfiles/trained_model.dvc
+RUN dvc pull dvcfiles/model.onnx.dvc
 RUN ls
 RUN python lambda_handler.py
 RUN chmod -R 0755 $MODEL_DIR
