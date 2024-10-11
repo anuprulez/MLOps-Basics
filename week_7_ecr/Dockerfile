@@ -28,6 +28,7 @@ RUN cat .dvc/config
 RUN dvc pull dvcfiles/model.onnx.dvc
 
 RUN chmod -R 0755 $MODEL_DIR
+RUN chmod -R 0755 /app
 
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
