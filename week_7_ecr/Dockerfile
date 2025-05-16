@@ -20,7 +20,7 @@ RUN pip install -r requirements_inference_prod.txt
 # initialise dvc
 RUN dvc init --no-scm
 # configuring remote server in dvc
-RUN dvc remote add -d model-store s3://ml-bucket-dvc/trained_models_dvc/ -f
+RUN dvc remote add -d model-store s3://models-onnx-ml/trained_models_dvc/ -f
 
 RUN cat .dvc/config
 
