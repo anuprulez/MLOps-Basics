@@ -78,7 +78,7 @@ def main():
     wandb_logger = WandbLogger(project="MLOps-Basics", entity="anup-rulez") 
     # SamplesVisualisationLogger(cola_data)
     trainer = pl.Trainer(
-        max_epochs=50,
+        max_epochs=5,
         logger=wandb_logger,
         callbacks=[checkpoint_callback, early_stopping_callback],
         log_every_n_steps=10,

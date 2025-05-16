@@ -20,9 +20,9 @@ def main():
 
     trainer = pl.Trainer(
         default_root_dir="logs",
-        #gpus=(1 if torch.cuda.is_available() else 0),
-        accelerator="auto",
-        max_epochs=5,
+        gpus=(1 if torch.cuda.is_available() else 0),
+        accelerator="dp",
+        max_epochs=1,
         fast_dev_run=False,
         logger=pl.loggers.TensorBoardLogger("logs/", name="cola", version=1),
         callbacks=[checkpoint_callback, early_stopping_callback],
