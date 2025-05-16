@@ -1,4 +1,5 @@
-name: Create Docker Container
+name: Create Docker Container and Push to ECR
+# This workflow builds a Docker container and pushes it to AWS ECR.
 
 on: [push]
 
